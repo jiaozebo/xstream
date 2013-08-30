@@ -1,15 +1,10 @@
 package com.gjfsoft.andaac;
 
-import java.io.File;
 import java.nio.ByteBuffer;
-
-import util.CommonMethod;
 
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
-import android.os.Environment;
-import android.util.Log;
 import c7.Frame;
 
 import com.crearo.mpu.sdk.VideoRunnable.FrameCallback;
@@ -36,7 +31,7 @@ public class MainActivity extends Thread {
 				AudioFormat.ENCODING_PCM_16BIT, minBufferSize);
 		ar.startRecording();
 		minBufferSize = 4096;
-		long encHandle = NativeEncodeOpen(2, Fr, 2, 32000 * 2);
+		long encHandle = NativeEncodeOpen(2, Fr, 2, 32000);
 		byte[] readBuf = new byte[minBufferSize];
 		ByteBuffer buffer = ByteBuffer.allocate(minBufferSize + 17);
 		int read = 0;

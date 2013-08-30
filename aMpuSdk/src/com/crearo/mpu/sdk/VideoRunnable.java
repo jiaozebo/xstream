@@ -32,21 +32,6 @@ public abstract class VideoRunnable implements Runnable {
 		return _runnable;
 	}
 
-	public static VideoRunnable createInstance(boolean isSupportRecord) {
-		if (isSupportRecord) {
-			// 为null或者为PreviewRunnable时，才创建
-			if (!(_runnable instanceof RecordRunnable)) {
-				_runnable = new RecordRunnable();
-			}
-		} else {
-			// 为null或者为RecordRunnable时，才创建
-			if (!(_runnable instanceof PreviewRunnable)) {
-				_runnable = new PreviewRunnable();
-			}
-		}
-		return _runnable;
-	}
-
 	protected Handler mHandler;
 	protected StreamWriter streamWriter;
 	protected boolean isFirstKeyfrmFethced;
@@ -151,9 +136,6 @@ public abstract class VideoRunnable implements Runnable {
 	 * @return
 	 */
 	public int getDCFrameCapacity() {
-		if (this instanceof RecordRunnable) {
-			return 40;
-		}
 		if (mSize.width >= 480) {
 			return 8;
 		}

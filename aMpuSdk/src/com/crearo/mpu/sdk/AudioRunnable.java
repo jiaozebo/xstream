@@ -87,7 +87,11 @@ public class AudioRunnable extends AudioEncoderRunnable {
 		ByteBuffer bf = null;
 		if (mDc != null) {
 			frame.mFrameIdx = count++;
-			bws = DCAssist.pumpFrame2DC(frame, mDc, -1);
+			try {
+				bws = DCAssist.pumpFrame2DC(frame, mDc, true);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
 		} else {
 			frame.mFrameIdx = count++;
 			bf = DCAssist.buildFrame(frame);

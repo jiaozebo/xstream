@@ -31,6 +31,10 @@ public class XStream extends Handler {
 
 	private static final int ARG_DATA_REQUEST_FRAME = 0x05;
 	private static final int ARG_DATA_REQUEST_END_FRAME = 0x5B;
+
+	private static final int KEY_VIDEO_WIDTH = 1000;
+	private static final int KEY_VIDEO_HEIGHT = 1001;
+
 	private int mHandle = 0;
 	private MainActivity mActivity;
 	static {
@@ -42,9 +46,10 @@ public class XStream extends Handler {
 		mHandle = native_setup(new WeakReference<XStream>(this));
 	}
 
-	public int reg(String addr, int port) {
+	public int reg(String addr, int port, String usr, String pwd, int width, int height) {
 		Assert.assertNotSame(0, mHandle);
-		return reg2Server(mHandle, addr, port);
+		setWidthHeight(width, height);
+		return reg2Server(mHandle, addr, port, usr, pwd);
 	}
 
 	public void unreg() {
@@ -61,15 +66,29 @@ public class XStream extends Handler {
 		unreg(handle);
 	}
 
+	public void closeStream() {
+		unreg(mHandle);
+	}
+
 	public int pumpFrame(byte[] frame, int... args) {
 		return pumpFrame(mHandle, frame, args);
 	}
 
-	private native int reg2Server(int handle, String addr, int port);
+	public void setWidthHeight(int width, int height) {
+		setIntParam(mHandle, KEY_VIDEO_WIDTH, width, KEY_VIDEO_HEIGHT, height);
+	}
+
+	private native int reg2Server(int handle, String addr, int port, String user, String pwd);
 
 	private native int pumpFrame(int handle, byte[] frame, int... args);
 
+	/**
+	 * 
+	 * @param handle
+	 */
 	private native void unreg(int handle);
+
+	private native void setIntParam(int handle, int... key_value_pairs);
 
 	private native final int native_setup(Object weak_this);
 
@@ -96,11 +115,15 @@ public class XStream extends Handler {
 		if (msg.what == CMD_CMD_QUIT) {
 			Log.e(TAG, "cmd channel quit!");
 			unreg();
-			mActivity.onChannelQuit(CMD_CMD_QUIT);
+			MainActivity activity = mActivity;
+			if (activity != null)
+				activity.onChannelQuit(CMD_CMD_QUIT);
 		} else if (msg.what == CMD_DATA_QUIT) {
 			Log.e(TAG, "data channel quit!");
 			unreg();
-			mActivity.onChannelQuit(CMD_DATA_QUIT);
+			MainActivity activity = mActivity;
+			if (activity != null)
+				activity.onChannelQuit(CMD_DATA_QUIT);
 		} else if (msg.what == CMD_CMD_MESSAGE) {
 			if (msg.arg1 == CMD_KEEPALIVE) {
 				Log.i(TAG, "cmd keepalive!");
@@ -109,12 +132,18 @@ public class XStream extends Handler {
 			}
 		} else if (msg.what == CMD_DATA_MESSAGE) {
 			if (ARG_DATA_REQUEST_FRAME == msg.arg1) {
-				mActivity.onStartStream(msg.arg1, msg.arg2);
+				MainActivity activity = mActivity;
+				if (activity != null)
+					activity.onStartStream(msg.arg1, msg.arg2);
 			} else if (ARG_DATA_REQUEST_END_FRAME == msg.arg1) {
-				mActivity.onStopStream();
+				MainActivity activity = mActivity;
+				if (activity != null)
+					activity.onStopStream();
 			} else if (0x0D == msg.arg1) {
 				// key frm
-				mActivity.onRequestKeyFrm();
+				MainActivity activity = mActivity;
+				if (activity != null)
+					activity.onRequestKeyFrm();
 			} else {
 				Log.e(TAG, "data recvd " + msg.arg1);
 			}

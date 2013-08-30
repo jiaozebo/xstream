@@ -1,5 +1,8 @@
 package com.john.xstream;
 
+import java.util.List;
+
+import junit.framework.Assert;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
@@ -11,38 +14,65 @@ import android.os.Build;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.View;
+import android.view.Window;
+import android.view.WindowManager;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
 
 public class LoginActivity extends Activity {
 
+	private static final String KEY_USR = "key_usr";
 	private static final String DEFAULT_ADDRESS = "210.51.52.34";
 	private static final int DEFAULT_PORT = 8888;
-	private String mAddress;
-	private int mPort;
-	private EditText mAddressView;
-	private EditText mPortView;
+	private static final String RESOLUTION_LOW = "key_low";
+	private static final String RESOLUTION_HIGH = "key_high";
+
+	private String mUserName;
+	private String mPassword;
+	private EditText mUser;
+	private EditText mPwd;
 	private View mLoginFormView;
 	private View mLoginStatusView;
 	private TextView mLoginStatusMessageView;
 	private UserLoginTask mAuthTask;
 
+	public static int sCameraId = 0;
 	public static Camera sCamera;
+	public static List<Camera.Size> sResolutions;
+	public static int sCurrentResolution;
+
+	public static void openCamera(int id) {
+		Assert.assertNull(sCamera);
+		Camera c = Camera.open(id);
+		sResolutions = c.getParameters().getSupportedPreviewSizes();
+		int size = sResolutions.size();
+		if (size > 3) {
+			sCurrentResolution = 3;
+		} else if (size == 1) {
+			sCurrentResolution = 0;
+		} else if (size == 2) {
+			sCurrentResolution = 1;
+		}
+		sCamera = c;
+		sCameraId = id;
+	}
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
+		requestWindowFeature(Window.FEATURE_NO_TITLE);
+		getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN,
+				WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_login);
+		setContentView(R.layout.login);
 
 		// Set up the login form.
-		mAddress = DEFAULT_ADDRESS;
-		mPort = DEFAULT_PORT;
-		mAddressView = (EditText) findViewById(R.id.email);
-		mAddressView.setText(mAddress);
+		mUserName = getPreferences(MODE_PRIVATE).getString(KEY_USR, "");
+		mUser = (EditText) findViewById(R.id.login_user);
+		mUser.setText(mUserName);
 
-		mPortView = (EditText) findViewById(R.id.password);
-		mPortView.setText(String.valueOf(mPort));
+		mPwd = (EditText) findViewById(R.id.login_pwd);
+		mPwd.setText(mPassword);
 
 		mLoginFormView = findViewById(R.id.login_form);
 		mLoginStatusView = findViewById(R.id.login_status);
@@ -54,7 +84,7 @@ public class LoginActivity extends Activity {
 				attemptLogin();
 			}
 		});
-
+		findViewById(R.id.sign_in_button).setFocusable(true);
 		findViewById(R.id.sign_in_button).requestFocus();
 	}
 
@@ -68,38 +98,29 @@ public class LoginActivity extends Activity {
 			return;
 		}
 		// Reset errors.
-		mAddressView.setError(null);
-		mPortView.setError(null);
+		mUser.setError(null);
+		mPwd.setError(null);
 
 		// Store values at the time of the login attempt.
-		mAddress = mAddressView.getText().toString();
+		mUserName = mUser.getText().toString();
 
 		boolean cancel = false;
-		View focusView = null;
-		// Check for a valid password.
-		if (TextUtils.isEmpty(mPortView.getText())) {
-			mPortView.setError("非法值！");
-			focusView = mPortView;
-			cancel = true;
-		}
 
-		mPort = Integer.parseInt(mPortView.getText().toString());
+		mPassword = mPwd.getText().toString();
 
 		// Check for a valid email address.
-		if (TextUtils.isEmpty(mAddress)) {
-			mAddressView.setError("非法值！");
-			focusView = mAddressView;
+		if (TextUtils.isEmpty(mUserName)) {
+			mUser.setError("请输入用户名");
 			cancel = true;
 		}
 
 		if (cancel) {
-			// There was an error; don't attempt login and focus the first
-			// form field with an error.
-			focusView.requestFocus();
 		} else {
 			// Show a progress spinner, and kick off a background task to
 			// perform the user login attempt.
 			mLoginStatusMessageView.setText("正在登录");
+
+			getPreferences(MODE_PRIVATE).edit().putString(KEY_USR, mUserName).apply();
 			showProgress(true);
 			mAuthTask = new UserLoginTask();
 			mAuthTask.execute((Void) null);
@@ -142,21 +163,28 @@ public class LoginActivity extends Activity {
 		}
 	}
 
+	private static final int DEFAULT_HEIGHT = 240;
+	private static final int DEFAULT_WIDTH = 320;
+
 	/**
 	 * Represents an asynchronous login/registration task used to authenticate
 	 * the user.
 	 */
 	public class UserLoginTask extends AsyncTask<Void, Void, Integer> {
+
 		XStream stream = new XStream();
 
 		@Override
 		protected Integer doInBackground(Void... params) {
 
 			if (sCamera == null) {
-				sCamera = Camera.open(0);
+				openCamera(0);
 			}
-
-			int result = stream.reg(mAddress, mPort);
+			if (sResolutions == null || sResolutions.isEmpty()) {
+				return 1000;
+			}
+			int result = stream.reg(DEFAULT_ADDRESS, DEFAULT_PORT, mUserName, mPassword,
+					DEFAULT_WIDTH, DEFAULT_HEIGHT);
 			return result;
 		}
 

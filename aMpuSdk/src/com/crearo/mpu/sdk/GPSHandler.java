@@ -66,7 +66,12 @@ public class GPSHandler implements BDLocationListener {
 			Frame aFrame = new Frame(Frame.FRAME_TYPE_GPS, frame, 0, Common.GPS_RAW_LENGTH,
 					(byte) 1);
 			aFrame.mFrameIdx = count++;
-			DCAssist.pumpFrame2DC(aFrame, dc, -1);
+			try {
+				DCAssist.pumpFrame2DC(aFrame, dc, true);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 		}
 	}
 

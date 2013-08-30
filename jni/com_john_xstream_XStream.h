@@ -13,7 +13,7 @@ extern "C" {
  * Signature: (Ljava/lang/String;I)I
  */
 JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server
-  (JNIEnv *, jobject, jint, jstring, jint);
+  (JNIEnv *, jobject, jint, jstring, jint, jstring, jstring);
 
 /*
  * Class:     com_john_xstream_XStream
@@ -38,6 +38,13 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_native_1setup
  */
 JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_pumpFrame
   (JNIEnv *, jobject, jint, jbyteArray, jintArray);
+/*
+ * Class:     com_john_xstream_XStream
+ * Method:    pumpVideoFrame
+ * Signature: (I[B[I)I
+ */
+JNIEXPORT void JNICALL Java_com_john_xstream_XStream_setIntParam
+  (JNIEnv *, jobject, jint, jintArray);
 
 #ifdef __cplusplus
 }

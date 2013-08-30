@@ -29,8 +29,8 @@
 #define u_int32 unsigned int
 #define u_int8 	unsigned char
 #define TAG "XStreamClient"
-#define NODE_NAME "IPAD1"
-
+#define KEY_VIDEO_WIDTH 1000
+#define KEY_VIDEO_HEIGHT 1001
 #define CMD_CMD_QUIT 0xe450
 #define CMD_DATA_QUIT 0xe451
 #define CMD_CMD_MESSAGE 0xe452
@@ -95,7 +95,7 @@ struct DATA_SEND_BUFFER {
 			TBuffer *pThis = new TBuffer;
 			pThis->pData = pBuffer;
 			pThis->nLength = len;
-
+			//加到tail
 			unsigned int uiTemp = uiLength;
 			TBuffer **pTemp = &pHead;
 			while (uiTemp > 0) {
@@ -145,7 +145,9 @@ struct CONTEXT {
 	unsigned int nSourceID;
 	pthread_t tCmd, tData;
 	DATA_SEND_BUFFER dataSendBuf;
-	bool isAlive;
+	unsigned int videoSize[2];
+	bool isCmdAlive;
+	bool isDataAlive;
 };
 
 struct MSG_HEADER //6
@@ -321,7 +323,7 @@ void* CmdChannelThread(void *param) {
 	int sendLen = 0;
 	int recvOff = 0;
 	fd_set read_flags, write_flags; // you know what these are
-	while (pContext->isAlive) {
+	while (pContext->isCmdAlive) {
 		// Zero the flags ready for using
 		FD_ZERO(&read_flags);
 		FD_ZERO(&write_flags);
@@ -426,7 +428,7 @@ void* DataChannelThread(void *param) {
 	fd_set read_flags, write_flags; // you know what these are
 	char *pBufferSend = 0;
 	int sendLen = 0, sendPos = 0;
-	while (pContext->isAlive) {
+	while (pContext->isDataAlive) {
 		// Zero the flags ready for using
 		FD_ZERO(&read_flags);
 		FD_ZERO(&write_flags);
@@ -438,7 +440,7 @@ void* DataChannelThread(void *param) {
 			if (i == 0) {
 				__android_log_print(ANDROID_LOG_WARN, TAG,
 						"sendLen : %d,sendPos:%d, isAlive:%d, pContext:%d",
-						sendLen, sendPos, pContext->isAlive, pContext);
+						sendLen, sendPos, pContext->isDataAlive, pContext);
 				i = 1;
 			}
 		}
@@ -527,8 +529,9 @@ void* DataChannelThread(void *param) {
 							pFormat->cFps = 20; // fps
 							pFormat->bmpHeader.biSize =
 									sizeof(BITMAPINFOHEADER);
-							pFormat->bmpHeader.biWidth = 320;
-							pFormat->bmpHeader.biHeight = 240;
+							pFormat->bmpHeader.biWidth = pContext->videoSize[0];
+							pFormat->bmpHeader.biHeight =
+									pContext->videoSize[1];
 							pFormat->bmpHeader.biPlanes = 1;
 							pFormat->bmpHeader.biBitCount = 24;
 							pFormat->bmpHeader.biCompression = 0x34363248;
@@ -695,7 +698,8 @@ void* DataChannelThread(void *param) {
 	return NULL;
 }
 
-int reg2Server(CONTEXT *pContext, const char *strAddr, int port) {
+int reg2Server(CONTEXT *pContext, const char *strAddr, int port,
+		const char *pUsr, const char *pPwd) {
 	CONN_REQ *pconn = NULL;
 	CONN_RESP *pconn_resp = NULL;
 	char buf[4096];
@@ -723,7 +727,8 @@ int reg2Server(CONTEXT *pContext, const char *strAddr, int port) {
 	pconn->hdr.nCmd = MSG_CONNECT_REQUEST;
 	pconn->hdr.nLength = sizeof(MSG_HEADER) + sizeof(PRODUCER_INFO);
 	pconn->ID = 4;
-	strcpy(pconn->pi.ProducerName, NODE_NAME);
+	strcpy(pconn->pi.ProducerName, pUsr);
+	strcpy(pconn->pi.sPassword, pPwd);
 	pconn->pi.bMulticast = 0;
 	pconn->pi.nCapacity = 0;
 	pconn->pi.nManufacturer = IPHONE_IPCAMERA;
@@ -756,7 +761,7 @@ int reg2Server(CONTEXT *pContext, const char *strAddr, int port) {
 	pchannel->nReserved = 0;
 	memset(pavchn, 0, sizeof(AV_CHANNEL_INFO));
 	pavchn->bValid = 1;
-	strcpy(pavchn->ChannelName, NODE_NAME);
+	strcpy(pavchn->ChannelName, pUsr);
 	pavchn->nMode = 2;
 	pavchn->bMulticast = 0;
 	pavchn->bVideo = 1;
@@ -811,17 +816,18 @@ int reg2Server(CONTEXT *pContext, const char *strAddr, int port) {
 	pContext->nDataPort = pavchn->nPort;
 	pContext->nSourceID = pavchn->nSourceID;
 
-	pContext->isAlive = true;
+	pContext->isCmdAlive = true;
 	/* Create a new thread. The new thread will run the print_xs
 	 function. */
 	if (pthread_create(&pContext->tCmd, NULL, &CmdChannelThread, pContext)
 			!= 0) {
-		pContext->isAlive = false;
+		pContext->isCmdAlive = false;
 		doreturn(-14);
 	}
+	pContext->isDataAlive = true;
 	if (pthread_create(&pContext->tData, NULL, &DataChannelThread, pContext)
 			!= 0) {
-		pContext->isAlive = false;
+		pContext->isCmdAlive = false;
 		doreturn(-15);
 	}
 	return 0;
@@ -841,10 +847,43 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_native_1setup(JNIEnv *penv,
 }
 
 JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server(JNIEnv * pEnv,
-		jobject jObj, jint handle, jstring addr, jint port) {
+		jobject jObj, jint handle, jstring addr, jint port, jstring usr,
+		jstring pwd) {
 	CONTEXT *pContext = (CONTEXT *) handle;
 	const char *pAddr = pEnv->GetStringUTFChars(addr, 0);
-	return reg2Server(pContext, pAddr, port);
+	const char *pUser = pEnv->GetStringUTFChars(usr, 0);
+	const char *pPwd = pEnv->GetStringUTFChars(pwd, 0);
+	int result = reg2Server(pContext, pAddr, port, pUser, pPwd);
+	pEnv->ReleaseStringUTFChars(addr, pAddr);
+	pEnv->ReleaseStringUTFChars(usr, pUser);
+	pEnv->ReleaseStringUTFChars(pwd, pPwd);
+	return result;
+}
+
+void setIntParam(int handle, int key, int value) {
+	if (handle == 0)
+		return;
+	CONTEXT *pContext = (CONTEXT *) handle;
+	if (key == KEY_VIDEO_WIDTH) {
+		pContext->videoSize[0] = value;
+	} else if (key == KEY_VIDEO_HEIGHT) {
+		pContext->videoSize[1] = value;
+	}
+}
+
+JNIEXPORT void JNICALL Java_com_john_xstream_XStream_setIntParam(JNIEnv *penv,
+		jobject jobj, jint handle, jintArray jiaParams) {
+	jsize paramLen = penv->GetArrayLength(jiaParams);
+	if (paramLen % 2 != 0) {
+		return;
+	}
+	jint *pParams = penv->GetIntArrayElements(jiaParams, 0);
+	for (int i = 0; i < paramLen;) {
+		int key = *(pParams + i++);
+		int value = *(pParams + i++);
+		setIntParam(handle, key, value);
+	}
+	penv->ReleaseIntArrayElements(jiaParams, pParams, 0);
 }
 
 /*
@@ -855,7 +894,7 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server(JNIEnv * pEnv,
 		jobject jobj, jint handle, jbyteArray jbaFrame, jintArray jiaParams) {
 	CONTEXT *pContext = (CONTEXT *) handle;
 	jsize paramLen = penv->GetArrayLength(jiaParams);
-	if (paramLen < 5) {
+	if (paramLen < 8) {
 		return -2;
 	}
 	jint *pParams = penv->GetIntArrayElements(jiaParams, 0);
@@ -866,7 +905,8 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server(JNIEnv * pEnv,
 	int keyFrm = *(pParams + 3);
 	int tmStamp = *(pParams + 4);
 	int nIdx = *(pParams + 5);
-
+	int width = *(pParams + 6);
+	int height = *(pParams + 7);
 	/*
 	 * PROXY_HEADER *pheader =
 	 (PROXY_HEADER *) pContext->dataSendBuf.pDataSendBuffer;
@@ -900,9 +940,9 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server(JNIEnv * pEnv,
 	pheader->cVersion_StreamID = 0x05;
 	pheader->dwLength = length - 7;
 
-	//  public static final byte FRAME_TYPE_VIDEO = 1;
+//  public static final byte FRAME_TYPE_VIDEO = 1;
 
-	// Field descriptor #13 B
+// Field descriptor #13 B
 //	  public static final byte FRAME_TYPE_AUDIO = 2;
 	if (type == 1) {
 		pheader->cType = 2;
@@ -926,16 +966,23 @@ JNIEXPORT jint JNICALL Java_com_john_xstream_XStream_reg2Server(JNIEnv * pEnv,
 	return result == 0 ? -1 : 0;
 }
 
-JNIEXPORT void JNICALL Java_com_john_xstream_XStream_unreg(JNIEnv *penv,
-		jobject jobj, jint handle) {
+void closeCmdChannel(int handle) {
 	CONTEXT *pContext = (CONTEXT *) handle;
-	pContext->isAlive = false;
-	__android_log_print(ANDROID_LOG_WARN, TAG, "unreg begin");
 	if (pContext->tCmd != 0) {
 		pthread_join(pContext->tCmd, 0);
 		pContext->tCmd = 0;
 		__android_log_print(ANDROID_LOG_WARN, TAG, "pthread_join tCmd");
+
 	}
+	if (pContext->nCmdSocketfd != 0) {
+		close(pContext->nCmdSocketfd);
+		pContext->nCmdSocketfd = 0;
+		__android_log_print(ANDROID_LOG_WARN, TAG, "close nCmdSocketfd");
+	}
+}
+
+void closeDataChannel(int handle) {
+	CONTEXT *pContext = (CONTEXT *) handle;
 	if (pContext->tData != 0) {
 		pthread_join(pContext->tData, 0);
 		pContext->tData = 0;
@@ -946,11 +993,18 @@ JNIEXPORT void JNICALL Java_com_john_xstream_XStream_unreg(JNIEnv *penv,
 		pContext->nDataSocketfd = 0;
 		__android_log_print(ANDROID_LOG_WARN, TAG, "close nDataSocketfd");
 	}
-	if (pContext->nCmdSocketfd != 0) {
-		close(pContext->nCmdSocketfd);
-		pContext->nCmdSocketfd = 0;
-		__android_log_print(ANDROID_LOG_WARN, TAG, "close nCmdSocketfd");
-	}
+}
+
+JNIEXPORT void JNICALL Java_com_john_xstream_XStream_unreg(JNIEnv *penv,
+		jobject jobj, jint handle) {
+	CONTEXT *pContext = (CONTEXT *) handle;
+	__android_log_print(ANDROID_LOG_WARN, TAG, "unreg begin");
+
+	pContext->isCmdAlive = false;
+	closeCmdChannel(handle);
+	pContext->isDataAlive = false;
+	closeDataChannel(handle);
+
 	penv->DeleteGlobalRef(pContext->clazz);
 	penv->DeleteGlobalRef(pContext->weak_this);
 	delete pContext;

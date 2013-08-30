@@ -77,7 +77,7 @@ public class MPUEntity extends MPUHandler {
 	 * @return 0为成功，-1表示无摄像头或者初始化摄像头失败。其他为错误码。
 	 */
 	public int start(SurfaceView sf, VideoParam param) {
-		PreviewRunnable pr = (PreviewRunnable) VideoRunnable.createInstance(false);
+		PreviewRunnable pr = new PreviewRunnable();
 		pr.setCameraSize(param.width, param.height);
 		pr.setVideoQuality(param.quality);
 		Camera camera = null;

@@ -72,6 +72,9 @@ public class PreviewRunnable extends VideoRunnable implements PreviewCallback {
 				}
 				if (mBufferReuse == null) {
 					mBufferReuse = new byte[frame.length];
+				} else if (mBufferReuse.length != frame.length) {
+					mBufferReuse = new byte[frame.length];
+					System.gc();
 				}
 				pr.cvt.convert(frame.data, pr.mSize.width, pr.mSize.height, 1, mBufferReuse);
 				int nRet = 0;
@@ -97,10 +100,7 @@ public class PreviewRunnable extends VideoRunnable implements PreviewCallback {
 						pr.mFrameCallback.onFrameFatched(frame);
 					}
 				}
-				long delay = 0l;
-				msg = obtainMessage(MSG_PREVIEW_FRAME_REQUESTED);
-				msg.obj = frame.data;
-				sendMessageDelayed(msg, delay);
+				pr.startFrame();
 			} else if (msg.what == MSG_PREVIEW_FRAME_REQUESTED) {
 				synchronized (pr) {
 					if (pr.mCamera != null) {
@@ -228,13 +228,17 @@ public class PreviewRunnable extends VideoRunnable implements PreviewCallback {
 	 */
 	private void startFrame() {
 		if (mCamera != null && mPreviewHandler != null) {
-			if (mCameraDataBufferReuse == null && (dc != null || streamWriter != null)) {
+			if ((dc != null || streamWriter != null)) {
 				Size mSize = mCamera.getParameters().getPreviewSize();
 				int format = mCamera.getParameters().getPreviewFormat();
 				int bpp = ImageFormat.getBitsPerPixel(format);
-				mCameraDataBufferReuse = new byte[mSize.width * mSize.height * bpp / 8];
+				byte[] buffer = mCameraDataBufferReuse;
+				if (buffer == null) {
+					buffer = new byte[mSize.width * mSize.height * bpp / 8];
+					mCameraDataBufferReuse = buffer;
+				}
 				Message msg = mPreviewHandler.obtainMessage(MSG_PREVIEW_FRAME_REQUESTED);
-				msg.obj = mCameraDataBufferReuse;
+				msg.obj = buffer;
 				msg.sendToTarget();
 			}
 		}
@@ -276,11 +280,15 @@ public class PreviewRunnable extends VideoRunnable implements PreviewCallback {
 	@Override
 	public void onPreviewFrame(byte[] data, Camera camera) {
 		if (mPreviewHandler != null) {
-			Frame frame = new Frame(Frame.FRAME_TYPE_VIDEO, data, 0, data.length, (byte) 0);
-			frame.timeStamp = (int) System.currentTimeMillis();
-			Message msg = mPreviewHandler.obtainMessage(MSG_PREVIEW_FRAME_FETCHED);
-			msg.obj = frame;
-			msg.sendToTarget();
+			if (data == null) {
+				startFrame();
+			} else {
+				Frame frame = new Frame(Frame.FRAME_TYPE_VIDEO, data, 0, data.length, (byte) 0);
+				frame.timeStamp = (int) System.currentTimeMillis();
+				Message msg = mPreviewHandler.obtainMessage(MSG_PREVIEW_FRAME_FETCHED);
+				msg.obj = frame;
+				msg.sendToTarget();
+			}
 		}
 	}
 
@@ -340,16 +348,16 @@ public class PreviewRunnable extends VideoRunnable implements PreviewCallback {
 		// TODO Auto-generated method stub
 		super.setCameraSize(width, height);
 		mRotateBuffer = new byte[width * height];
+		mCameraDataBufferReuse = null;
 	}
 
 	@Override
 	public void stopCamera() {
-		synchronized (this) {
-			if (mCamera != null) {
-				mCamera.stopPreview();
-				mCamera.release();
-				mCamera = null;
-			}
+		Camera c = mCamera;
+		if (c != null) {
+			mCamera = null;
+			mPreviewHandler.removeMessages(MSG_PREVIEW_FRAME_REQUESTED);
+			c.stopPreview();
 		}
 		mCameraDataBufferReuse = null;
 	}

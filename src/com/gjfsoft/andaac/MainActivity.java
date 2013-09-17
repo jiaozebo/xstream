@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
+import android.os.Process;
 import c7.Frame;
 
 import com.crearo.mpu.sdk.VideoRunnable.FrameCallback;
@@ -20,6 +21,9 @@ public class MainActivity extends Thread {
 	}
 
 	public void run() {
+		
+		Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+		
 		int Fr = 32000;
 		int CC = AudioFormat.CHANNEL_CONFIGURATION_STEREO;
 		int audioBuffer = AudioRecord.getMinBufferSize(Fr, CC, AudioFormat.ENCODING_PCM_16BIT);
@@ -50,6 +54,12 @@ public class MainActivity extends Thread {
 			if (result < 0) {
 				continue;
 			}
+			try {
+				Thread.sleep(1);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			buffer.clear();
 			buffer.position(17);
 			buffer.put(outBuf, 0, result);
@@ -72,47 +82,10 @@ public class MainActivity extends Thread {
 		// dc.close();
 	}
 
-	public void run2() {
-		int Fr = 32000;
-		int CC = AudioFormat.CHANNEL_CONFIGURATION_STEREO;
-		final int minBufferSize = AudioRecord.getMinBufferSize(Fr, CC,
-				AudioFormat.ENCODING_PCM_16BIT);
-		AudioRecord ar = new AudioRecord(AudioSource.DEFAULT, Fr, CC,
-				AudioFormat.ENCODING_PCM_16BIT, minBufferSize);
-		ar.startRecording();
-
-		byte[] readBuf = new byte[minBufferSize + 17];
-		int read = 17;
-		while (mWorking) {
-			int cread = ar.read(readBuf, read, readBuf.length - read);
-			if (cread < 0)
-				break;
-			read += cread;
-			if (read < readBuf.length) {
-				continue;
-			}
-			read = 17;
-			Frame frame = new Frame();
-			frame.timeStamp = (int) System.currentTimeMillis();
-			frame.data = readBuf;
-			frame.offset = 17;
-			frame.length = readBuf.length - 17;
-			frame.keyFrmFlg = 1;
-			frame.type = Frame.FRAME_TYPE_AUDIO;
-			if (mCallback != null) {
-				mCallback.onFrameFatched(frame);
-			}
-			// DCAssist.pumpFrame2DC(frame, loopCount, dc, -1);
-
-		}
-		ar.release();
-		// dc.close();
-	}
-
 	@Override
 	public synchronized void start() {
 		mWorking = true;
-		super.start();
+//		super.start();
 	}
 
 	public void terminate() throws InterruptedException {

@@ -30,7 +30,7 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 import c7.Frame;
 
-import com.crearo.mpu.sdk.VideoRunnable.FrameCallback;
+import com.gjfsoft.andaac.FrameCallback;
 
 public class MainActivity extends Activity implements FrameCallback, OnClickListener {
 
@@ -46,6 +46,7 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 
 	private ImageView mPreview, mSnapshot, mSetting;
 	private Dialog mSettingDlg;
+	private int mSizeID;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -87,6 +88,66 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 		mPreview.setOnClickListener(this);
 		mSnapshot.setOnClickListener(this);
 		mSetting.setOnClickListener(this);
+
+		mSettingDlg = new Dialog(
+				this,
+				Build.VERSION.SDK_INT > 10 ? android.R.style.Theme_Holo_Light_DialogWhenLarge_NoActionBar
+						: android.R.style.Theme_Dialog);
+		mSettingDlg.setContentView(R.layout.setting);
+		Button ok = (Button) mSettingDlg.findViewById(R.id.ok);
+		Button cancel = (Button) mSettingDlg.findViewById(R.id.cancel);
+		ok.setOnClickListener(this);
+		cancel.setOnClickListener(this);
+
+		RadioGroup rg = (RadioGroup) mSettingDlg.findViewById(R.id.resulotions);
+		int currentSizeID = 0;
+		for (int i = 0; i < 3; i++) {
+			RadioButton rb = (RadioButton) rg.getChildAt(i);
+			rb.setId(i);
+		}
+		List<Size> rs = LoginActivity.sResolutions;
+		int size = rs.size();
+		if (size == 3) {
+			for (int i = 0; i < 3; i++) {
+				RadioButton rb = (RadioButton) rg.getChildAt(i);
+				setRBTag(rb, rs.get(i));
+			}
+			currentSizeID = 1;
+		} else if (size == 2) {
+			rg.removeViewAt(1);
+			for (int i = 0; i < 2; i++) {
+				RadioButton rb = (RadioButton) rg.getChildAt(i);
+				setRBTag(rb, rs.get(i));
+			}
+			currentSizeID = 0;
+		} else if (size == 1) {
+			rg.removeViewAt(2);
+			rg.removeViewAt(0);
+			RadioButton rb = (RadioButton) rg.getChildAt(0);
+			setRBTag(rb, rs.get(0));
+			currentSizeID = 0;
+		} else if (size == 4 || size == 5) {
+			for (int i = 0; i < 3; i++) {
+				RadioButton rb = (RadioButton) rg.getChildAt(i);
+				setRBTag(rb, rs.get(i + 1));
+			}
+			currentSizeID = 1;
+		}
+		if (size == 0) {
+			finish();
+			return;
+		} else {
+			for (int i = 0; i < 3; i++) {
+				RadioButton rb = (RadioButton) rg.getChildAt(i);
+				setRBTag(rb, rs.get(i * 2));
+			}
+			currentSizeID = 1;
+		}
+		mSizeID = getPreferences(MODE_PRIVATE).getInt(KEY_RESOLUTION_IDX, currentSizeID);
+
+		RadioButton rb = (RadioButton) mSettingDlg.findViewById(mSizeID);
+		if (rb != null)
+			rb.setChecked(true);
 	}
 
 	@Override
@@ -142,19 +203,19 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 		if (mPreviewThread == null) {
 			mIdx = 0;
 			MyPreviewRunnable mpr = new MyPreviewRunnable();
-			Camera.Size s = LoginActivity.sResolutions.get(LoginActivity.sCurrentResolution);
+			Camera.Size s = LoginActivity.sResolutions.get(mSizeID);
 			mpr.setCameraSize(s.width, s.height);
-			int result = mpr.create(mSurfaceView, LoginActivity.sCamera);
-			if (result != 0) {
-				mpr.close();
-				mpr = null;
-			} else {
-				if (arg1 == 2) {
-					mAudioThread = new com.gjfsoft.andaac.MainActivity(this);
-					mAudioThread.start();
-				}
-				mpr.setFrameCallback(this);
+			mpr.setVideoQuality(5);
+			mpr.setFrameRate(20);
+			mpr.setRotationDegree(0);
+			mpr.startThread();
+
+			mpr.startCamera(mSurfaceView, LoginActivity.sCameraId);
+			if (arg1 == 2) {
+				mAudioThread = new com.gjfsoft.andaac.MainActivity(this);
+				mAudioThread.start();
 			}
+//			mpr.setFrameCallback(this);
 			mPreviewThread = mpr;
 		}
 	}
@@ -181,7 +242,7 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 	}
 
 	@Override
-	public synchronized boolean onFrameFatched(Frame frame) {
+	public synchronized void onFrameFatched(Frame frame) {
 		// frame带有私有数据
 		final XStream stream = MainActivity.stream;
 		if (stream != null) {
@@ -222,7 +283,6 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 				}
 			}
 		}
-		return false;
 	}
 
 	public void onChannelQuit(int channel) {
@@ -243,80 +303,11 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 	public void onClick(View v) {
 		if (v == mSetting) {
 			List<Size> rs = LoginActivity.sResolutions;
-			if (mSettingDlg == null) {
-				mSettingDlg = new Dialog(
-						this,
-						Build.VERSION.SDK_INT > 10 ? android.R.style.Theme_Holo_Light_DialogWhenLarge_NoActionBar
-								: android.R.style.Theme_Dialog);
-				mSettingDlg.setContentView(R.layout.setting);
-				Button ok = (Button) mSettingDlg.findViewById(R.id.ok);
-				Button cancel = (Button) mSettingDlg.findViewById(R.id.cancel);
-				ok.setOnClickListener(this);
-				cancel.setOnClickListener(this);
-
-				RadioGroup rg = (RadioGroup) mSettingDlg.findViewById(R.id.resulotions);
-				for (int i = 0; i < 3; i++) {
-					RadioButton rb = (RadioButton) rg.getChildAt(i);
-					rb.setId(i);
-				}
-
-				int size = rs.size();
-				if (size == 3) {
-					for (int i = 0; i < 3; i++) {
-						RadioButton rb = (RadioButton) rg.getChildAt(i);
-						setRBTag(rb, rs.get(i));
-					}
-				} else if (size == 2) {
-					rg.removeViewAt(1);
-					for (int i = 0; i < 2; i++) {
-						RadioButton rb = (RadioButton) rg.getChildAt(i);
-						setRBTag(rb, rs.get(i));
-					}
-				} else if (size == 1) {
-					rg.removeViewAt(0);
-					rg.removeViewAt(1);
-					RadioButton rb = (RadioButton) rg.getChildAt(0);
-					setRBTag(rb, rs.get(0));
-				} else if (size == 4 || size == 5) {
-					for (int i = 0; i < 3; i++) {
-						RadioButton rb = (RadioButton) rg.getChildAt(i);
-						setRBTag(rb, rs.get(i + 1));
-					}
-				} else {
-					for (int i = 0; i < 3; i++) {
-						RadioButton rb = (RadioButton) rg.getChildAt(i);
-						setRBTag(rb, rs.get(i * 2));
-					}
-				}
-			}
 			RadioGroup rg = (RadioGroup) mSettingDlg.findViewById(R.id.resulotions);
 			if (rs.isEmpty()) {
 				return;
 			}
-			if (rs.size() == 1) {
-				RadioButton rb = (RadioButton) rg.findViewById(0);
-				rb.setVisibility(View.GONE);
-				rb = (RadioButton) rg.findViewById(2);
-				rb.setVisibility(View.GONE);
-				rb = (RadioButton) rg.findViewById(1);
-				Camera.Size s = rs.get(0);
-				rb.setText(String.format("%d*%d", s.width, s.height));
-				rb.setChecked(true);
-				rb.setEnabled(false);
-			} else if (rs.size() == 2) {
-				rg.getChildAt(1).setVisibility(View.GONE);
-				RadioButton rb = (RadioButton) rg.findViewById(0);
-				Camera.Size s = rs.get(0);
-				rb.setText(String.format("%d*%d", s.width, s.height));
-
-				rb = (RadioButton) rg.findViewById(1);
-				s = rs.get(1);
-				rb.setText(String.format("%d*%d", s.width, s.height));
-			} else {
-
-			}
 			mSettingDlg.show();
-
 			int resolutionIdx = getPreferences(MODE_PRIVATE).getInt(KEY_RESOLUTION_IDX, 1);
 			RadioButton rb = (RadioButton) mSettingDlg.findViewById(resolutionIdx);
 			rb.setChecked(true);
@@ -341,8 +332,8 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 					mpr = new MyPreviewRunnable();
 					Camera.Size s = (Size) rb.getTag();
 					mpr.setCameraSize(s.width, s.height);
-					mpr.create(mSurfaceView, LoginActivity.sCamera);
-					mpr.setFrameCallback(this);
+					mpr.pauseCamera();
+					mpr.resumeCamera();
 					mPreviewThread = mpr;
 				}
 			}
@@ -352,17 +343,9 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 		} else if (v == mPreview) {
 			MyPreviewRunnable mpr = mPreviewThread;
 			if (mpr != null) {
-				mpr.stopCamera();
 				int id = Camera.getNumberOfCameras() - (LoginActivity.sCameraId + 1);
 				Camera c = LoginActivity.sCamera;
-				if (c != null) {
-					LoginActivity.sCamera = null;
-					c.release();
-					LoginActivity.openCamera(id);
-					c = LoginActivity.sCamera;
-					if (c != null)
-						mpr.initCamera(mSurfaceView, c);
-				}
+				mpr.switchCamera(id);
 				mPreviewThread = mpr;
 			}
 		}

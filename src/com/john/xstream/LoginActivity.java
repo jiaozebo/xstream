@@ -40,20 +40,12 @@ public class LoginActivity extends Activity {
 	public static int sCameraId = 0;
 	public static Camera sCamera;
 	public static List<Camera.Size> sResolutions;
-	public static int sCurrentResolution;
 
 	public static void openCamera(int id) {
 		Assert.assertNull(sCamera);
 		Camera c = Camera.open(id);
 		sResolutions = c.getParameters().getSupportedPreviewSizes();
 		int size = sResolutions.size();
-		if (size > 3) {
-			sCurrentResolution = 3;
-		} else if (size == 1) {
-			sCurrentResolution = 0;
-		} else if (size == 2) {
-			sCurrentResolution = 1;
-		}
 		sCamera = c;
 		sCameraId = id;
 	}

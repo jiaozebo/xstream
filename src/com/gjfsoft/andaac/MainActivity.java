@@ -5,10 +5,7 @@ import java.nio.ByteBuffer;
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
-import android.os.Process;
 import c7.Frame;
-
-import com.crearo.mpu.sdk.VideoRunnable.FrameCallback;
 
 public class MainActivity extends Thread {
 	private static final int _4096 = 4096;
@@ -21,9 +18,9 @@ public class MainActivity extends Thread {
 	}
 
 	public void run() {
-		
-		Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
-		
+
+// Process.setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND);
+
 		int Fr = 32000;
 		int CC = AudioFormat.CHANNEL_CONFIGURATION_STEREO;
 		int audioBuffer = AudioRecord.getMinBufferSize(Fr, CC, AudioFormat.ENCODING_PCM_16BIT);
@@ -85,7 +82,7 @@ public class MainActivity extends Thread {
 	@Override
 	public synchronized void start() {
 		mWorking = true;
-//		super.start();
+// super.start();
 	}
 
 	public void terminate() throws InterruptedException {

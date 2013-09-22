@@ -2,7 +2,6 @@ package com.john.xstream;
 
 import android.os.Process;
 import android.view.SurfaceView;
-import c7.DC7;
 
 import com.crearo.mpu.sdk.PreviewThread;
 
@@ -10,7 +9,7 @@ public class MyPreviewRunnable extends PreviewThread {
 
 	public MyPreviewRunnable() {
 		super();
-		setVideoDC(new DC7());
+//		setVideoDC(new DC7());
 		USE_HW_ENCODE = false;
 	}
 
@@ -63,6 +62,33 @@ public class MyPreviewRunnable extends PreviewThread {
 	protected void switchCamera(int newId) {
 		// TODO Auto-generated method stub
 		super.switchCamera(newId);
+	}
+
+	/* (non-Javadoc)
+	 * @see com.crearo.mpu.sdk.CameraThread#tryFeedCamera()
+	 */
+	@Override
+	protected void tryFeedCamera() {
+		// TODO Auto-generated method stub
+		super.tryFeedCamera();
+	}
+
+	/* (non-Javadoc)
+	 * @see com.crearo.mpu.sdk.CameraThread#stopThread()
+	 */
+	@Override
+	protected void stopThread() {
+		// TODO Auto-generated method stub
+		super.stopThread();
+	}
+
+	/* (non-Javadoc)
+	 * @see com.crearo.mpu.sdk.CameraThread#stopCamera(boolean)
+	 */
+	@Override
+	protected void stopCamera(boolean block) {
+		// TODO Auto-generated method stub
+		super.stopCamera(block);
 	}
  
 }

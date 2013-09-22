@@ -2,6 +2,8 @@ package com.gjfsoft.andaac;
 
 import java.nio.ByteBuffer;
 
+import com.crearo.mpu.sdk.CameraThread.H264FrameCallback;
+
 import android.media.AudioFormat;
 import android.media.AudioRecord;
 import android.media.MediaRecorder.AudioSource;
@@ -11,9 +13,9 @@ public class MainActivity extends Thread {
 	private static final int _4096 = 4096;
 	private boolean mWorking;
 
-	FrameCallback mCallback;
+	H264FrameCallback mCallback;
 
-	public MainActivity(FrameCallback callback) {
+	public MainActivity(H264FrameCallback callback) {
 		mCallback = callback;
 	}
 
@@ -69,7 +71,7 @@ public class MainActivity extends Thread {
 			frame.keyFrmFlg = 1;
 			frame.type = Frame.FRAME_TYPE_AUDIO;
 			if (mCallback != null) {
-				mCallback.onFrameFatched(frame);
+				mCallback.onFrameCallback(null, frame);
 			}
 
 			// DCAssist.pumpFrame2DC(frame, loopCount, dc, -1);
@@ -82,7 +84,7 @@ public class MainActivity extends Thread {
 	@Override
 	public synchronized void start() {
 		mWorking = true;
-// super.start();
+		super.start();
 	}
 
 	public void terminate() throws InterruptedException {

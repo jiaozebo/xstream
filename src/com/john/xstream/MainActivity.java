@@ -30,9 +30,9 @@ import android.widget.RadioGroup;
 import android.widget.Toast;
 import c7.Frame;
 
-import com.gjfsoft.andaac.FrameCallback;
+import com.crearo.mpu.sdk.CameraThread.H264FrameCallback;
 
-public class MainActivity extends Activity implements FrameCallback, OnClickListener {
+public class MainActivity extends Activity implements OnClickListener, H264FrameCallback {
 
 	private static final String TAG = "XStream";
 	private static final String KEY_RESOLUTION_IDX = "resolution_idx";
@@ -47,6 +47,7 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 	private ImageView mPreview, mSnapshot, mSetting;
 	private Dialog mSettingDlg;
 	private int mSizeID;
+	private int mCameraId = 0;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -55,11 +56,11 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 				WindowManager.LayoutParams.FLAG_FULLSCREEN);
 		super.onCreate(savedInstanceState);
 
-		if (LoginActivity.sCamera == null) {
-			Toast.makeText(this, "摄像头初始化失败。", Toast.LENGTH_SHORT).show();
-			finish();
-			return;
-		}
+// if (LoginActivity.sCamera == null) {
+// Toast.makeText(this, "摄像头初始化失败。", Toast.LENGTH_SHORT).show();
+// finish();
+// return;
+// }
 		setContentView(R.layout.activity_main);
 		if (stream != null) {
 			stream.setStartStreamCallback(this);
@@ -177,6 +178,17 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 		super.onPause();
 	}
 
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see android.app.Activity#onDestroy()
+	 */
+	@Override
+	protected void onDestroy() {
+		// TODO Auto-generated method stub
+		super.onDestroy();
+	}
+
 	@Override
 	public void onBackPressed() {
 		new AlertDialog.Builder(this).setTitle(R.string.app_name).setMessage("确定要退出吗？")
@@ -190,11 +202,11 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 							stream = null;
 						}
 						MainActivity.super.onBackPressed();
-						Camera c = LoginActivity.sCamera;
-						if (c != null) {
-							c.release();
-							LoginActivity.sCamera = null;
-						}
+// Camera c = LoginActivity.sCamera;
+// if (c != null) {
+// c.release();
+// LoginActivity.sCamera = null;
+// }
 					}
 				}).setNegativeButton("取消", null).show();
 	}
@@ -208,14 +220,15 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 			mpr.setVideoQuality(5);
 			mpr.setFrameRate(20);
 			mpr.setRotationDegree(0);
+			mpr.setH264FrameCallback(this);
 			mpr.startThread();
 
-			mpr.startCamera(mSurfaceView, LoginActivity.sCameraId);
+			mpr.startCamera(mSurfaceView, mCameraId);
 			if (arg1 == 2) {
 				mAudioThread = new com.gjfsoft.andaac.MainActivity(this);
 				mAudioThread.start();
 			}
-//			mpr.setFrameCallback(this);
+// mpr.setFrameCallback(this);
 			mPreviewThread = mpr;
 		}
 	}
@@ -237,12 +250,13 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 			}
 		}
 		if (pr != null) {
-			pr.close();
+			pr.stopCamera(true);
+			pr.stopThread();
 		}
 	}
 
 	@Override
-	public synchronized void onFrameFatched(Frame frame) {
+	public synchronized void onFrameCallback(Thread context, Frame frame) {
 		// frame带有私有数据
 		final XStream stream = MainActivity.stream;
 		if (stream != null) {
@@ -328,11 +342,9 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 				MyPreviewRunnable mpr = mPreviewThread;
 				if (mpr != null) {
 					mPreviewThread = null;
-					mpr.close();
-					mpr = new MyPreviewRunnable();
-					Camera.Size s = (Size) rb.getTag();
-					mpr.setCameraSize(s.width, s.height);
 					mpr.pauseCamera();
+					Camera.Size s = (Size) rb.getTag();
+					mpr.setCameraSizeNoblock(s.width, s.height);
 					mpr.resumeCamera();
 					mPreviewThread = mpr;
 				}
@@ -341,12 +353,18 @@ public class MainActivity extends Activity implements FrameCallback, OnClickList
 		} else if (v.getId() == R.id.cancel) {
 			mSettingDlg.dismiss();
 		} else if (v == mPreview) {
+			int num = Camera.getNumberOfCameras();
+			if (num < 2) {
+				Toast.makeText(this, "您的手机不支持摄像头切换功能", Toast.LENGTH_SHORT).show();
+			}
 			MyPreviewRunnable mpr = mPreviewThread;
 			if (mpr != null) {
-				int id = Camera.getNumberOfCameras() - (LoginActivity.sCameraId + 1);
-				Camera c = LoginActivity.sCamera;
-				mpr.switchCamera(id);
-				mPreviewThread = mpr;
+// int id = Camera.getNumberOfCameras() - (LoginActivity.sCameraId + 1);
+// Camera c = LoginActivity.sCamera;
+// mpr.switchCamera(id);
+// mPreviewThread = mpr;
+				mCameraId = num - 1 - mCameraId;
+				mpr.switchCamera(mCameraId);
 			}
 		}
 	}

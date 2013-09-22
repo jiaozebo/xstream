@@ -2,7 +2,6 @@ package com.john.xstream;
 
 import java.util.List;
 
-import junit.framework.Assert;
 import android.animation.Animator;
 import android.animation.AnimatorListenerAdapter;
 import android.annotation.TargetApi;
@@ -37,17 +36,22 @@ public class LoginActivity extends Activity {
 	private TextView mLoginStatusMessageView;
 	private UserLoginTask mAuthTask;
 
-	public static int sCameraId = 0;
-	public static Camera sCamera;
+// public static Camera sCamera;
 	public static List<Camera.Size> sResolutions;
 
-	public static void openCamera(int id) {
-		Assert.assertNull(sCamera);
-		Camera c = Camera.open(id);
-		sResolutions = c.getParameters().getSupportedPreviewSizes();
-		int size = sResolutions.size();
-		sCamera = c;
-		sCameraId = id;
+	public static void getCameraResolutions(int id) {
+		try {
+			int num = Camera.getNumberOfCameras();
+			if (num < 1) {
+				return;
+			}
+			Camera c = Camera.open(id);
+			sResolutions = c.getParameters().getSupportedPreviewSizes();
+			int size = sResolutions.size();
+			c.release();
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
 	@Override
@@ -169,9 +173,7 @@ public class LoginActivity extends Activity {
 		@Override
 		protected Integer doInBackground(Void... params) {
 
-			if (sCamera == null) {
-				openCamera(0);
-			}
+			getCameraResolutions(0);
 			if (sResolutions == null || sResolutions.isEmpty()) {
 				return 1000;
 			}
@@ -189,6 +191,9 @@ public class LoginActivity extends Activity {
 				MainActivity.stream = stream;
 				startActivity(new Intent(LoginActivity.this, MainActivity.class));
 				finish();
+			} else if (result == 1000) {
+				Toast.makeText(LoginActivity.this, String.format("启动摄像头失败", result),
+						Toast.LENGTH_SHORT).show();
 			} else {
 				Toast.makeText(LoginActivity.this, String.format("login failed(%d)！", result),
 						Toast.LENGTH_SHORT).show();

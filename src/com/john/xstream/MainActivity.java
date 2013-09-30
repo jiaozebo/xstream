@@ -18,6 +18,7 @@ import android.os.Looper;
 import android.os.PowerManager;
 import android.os.PowerManager.WakeLock;
 import android.view.SurfaceHolder;
+import android.view.SurfaceHolder.Callback;
 import android.view.SurfaceView;
 import android.view.View;
 import android.view.View.OnClickListener;
@@ -32,7 +33,7 @@ import c7.Frame;
 
 import com.crearo.mpu.sdk.CameraThread.H264FrameCallback;
 
-public class MainActivity extends Activity implements OnClickListener, H264FrameCallback {
+public class MainActivity extends Activity implements OnClickListener, H264FrameCallback, Callback {
 
 	private static final String TAG = "XStream";
 	private static final String KEY_RESOLUTION_IDX = "resolution_idx";
@@ -44,10 +45,11 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 	private com.gjfsoft.andaac.MainActivity mAudioThread;
 	private WakeLock mWakeLock;
 
-	private ImageView mPreview, mSnapshot, mSetting;
+	private ImageView mLive, mSnapshot, mSetting, mSwitch;
 	private Dialog mSettingDlg;
 	private int mSizeID;
 	private int mCameraId = 0;
+	private View mLiveView;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -62,6 +64,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 // return;
 // }
 		setContentView(R.layout.activity_main);
+		mLiveView = findViewById(R.id.tv_live);
 		if (stream != null) {
 			stream.setStartStreamCallback(this);
 		}
@@ -69,8 +72,9 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 		mSurfaceView = (SurfaceView) findViewById(R.id.sv_view);
 		mSurfaceHolder = mSurfaceView.getHolder();
 		mSurfaceHolder.setType(SurfaceHolder.SURFACE_TYPE_PUSH_BUFFERS);
+		mSurfaceHolder.addCallback(this);
 
-		mPreview = (ImageView) findViewById(R.id.preview_preview);
+		mLive = (ImageView) findViewById(R.id.preview_preview);
 		mSnapshot = (ImageView) findViewById(R.id.preview_snapshot);
 		mSetting = (ImageView) findViewById(R.id.preview_setting);
 
@@ -78,7 +82,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 		drawable.addState(new int[] { android.R.attr.state_pressed },
 				getResources().getDrawable(R.drawable.preview_pressed));
 		drawable.addState(new int[] {}, getResources().getDrawable(R.drawable.preview));
-		mPreview.setImageDrawable(drawable);
+		mLive.setImageDrawable(drawable);
 
 		drawable = new StateListDrawable();
 		drawable.addState(new int[] { android.R.attr.state_pressed },
@@ -86,7 +90,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 		drawable.addState(new int[] {}, getResources().getDrawable(R.drawable.snapshot));
 		mSnapshot.setImageDrawable(drawable);
 
-		mPreview.setOnClickListener(this);
+		mLive.setOnClickListener(this);
 		mSnapshot.setOnClickListener(this);
 		mSetting.setOnClickListener(this);
 
@@ -159,7 +163,6 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 			PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
 			mWakeLock = pm.newWakeLock(PowerManager.SCREEN_DIM_WAKE_LOCK
 					| PowerManager.ON_AFTER_RELEASE, TAG);
-
 		}
 		mWakeLock.acquire(); // ... wl.release(); }
 
@@ -185,7 +188,10 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 	 */
 	@Override
 	protected void onDestroy() {
-		// TODO Auto-generated method stub
+		if (stream != null) {
+			stream.unreg();
+			stream = null;
+		}
 		super.onDestroy();
 	}
 
@@ -196,40 +202,21 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 
 					@Override
 					public void onClick(DialogInterface dialog, int which) {
-						onStopStream();
-						if (stream != null) {
-							stream.unreg();
-							stream = null;
-						}
 						MainActivity.super.onBackPressed();
-// Camera c = LoginActivity.sCamera;
-// if (c != null) {
-// c.release();
-// LoginActivity.sCamera = null;
-// }
 					}
 				}).setNegativeButton("取消", null).show();
 	}
 
 	public synchronized void onStartStream(int arg0, int arg1) {
-		if (mPreviewThread == null) {
+		MyPreviewRunnable mpr = mPreviewThread;
+		if (mpr != null) {
 			mIdx = 0;
-			MyPreviewRunnable mpr = new MyPreviewRunnable();
-			Camera.Size s = LoginActivity.sResolutions.get(mSizeID);
-			mpr.setCameraSize(s.width, s.height);
-			mpr.setVideoQuality(5);
-			mpr.setFrameRate(20);
-			mpr.setRotationDegree(0);
 			mpr.setH264FrameCallback(this);
-			mpr.startThread();
-
-			mpr.startCamera(mSurfaceView, mCameraId);
-			if (arg1 == 2) {
-				mAudioThread = new com.gjfsoft.andaac.MainActivity(this);
-				mAudioThread.start();
-			}
-// mpr.setFrameCallback(this);
-			mPreviewThread = mpr;
+			mpr.tryFeedCamera();
+		}
+		com.gjfsoft.andaac.MainActivity audioThread = mAudioThread;
+		if (audioThread != null && !audioThread.isAlive()) {
+			audioThread.start();
 		}
 	}
 
@@ -259,7 +246,8 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 	public synchronized void onFrameCallback(Thread context, Frame frame) {
 		// frame带有私有数据
 		final XStream stream = MainActivity.stream;
-		if (stream != null) {
+		boolean live = mLiveView.getVisibility() == View.VISIBLE;
+		if (live && stream != null) {
 			int result = -1;
 			while (result == -1) {
 				if (mPreviewThread == null && frame.type == Frame.FRAME_TYPE_VIDEO) {
@@ -352,7 +340,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 			mSettingDlg.dismiss();
 		} else if (v.getId() == R.id.cancel) {
 			mSettingDlg.dismiss();
-		} else if (v == mPreview) {
+		} else if (v == mSwitch) {
 			int num = Camera.getNumberOfCameras();
 			if (num < 2) {
 				Toast.makeText(this, "您的手机不支持摄像头切换功能", Toast.LENGTH_SHORT).show();
@@ -366,12 +354,51 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 				mCameraId = num - 1 - mCameraId;
 				mpr.switchCamera(mCameraId);
 			}
+		} else if (v == mLive) {
+			boolean isLive = mLiveView.getVisibility() == View.VISIBLE;
+			MyPreviewRunnable mpr = mPreviewThread;
+			if (mpr != null) {
+				mpr.setH264FrameCallback(isLive ? null : this);
+				if (!isLive) {
+					mpr.tryFeedCamera();
+				}
+			}
+			if (isLive) {
+				mLiveView.setVisibility(View.GONE);
+			} else {
+				mLiveView.setVisibility(View.VISIBLE);
+			}
 		}
 	}
 
 	private void setRBTag(RadioButton rb, Camera.Size s) {
 		rb.setTag(s);
-		rb.setText(String.format("%d*%d", s.width, s.height));
+	}
+
+	@Override
+	public void surfaceCreated(SurfaceHolder holder) {
+		MyPreviewRunnable mpr = new MyPreviewRunnable();
+		Camera.Size s = LoginActivity.sResolutions.get(mSizeID);
+		mpr.setCameraSize(s.width, s.height);
+		mpr.setVideoQuality(5);
+		mpr.setFrameRate(20);
+		mpr.setRotationDegree(0);
+		mpr.setH264FrameCallback(null);
+		mpr.startThread();
+		mpr.startCamera(mSurfaceView, mCameraId);
+		mPreviewThread = mpr;
+		mAudioThread = new com.gjfsoft.andaac.MainActivity(this);
+	}
+
+	@Override
+	public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+		// TODO Auto-generated method stub
+
+	}
+
+	@Override
+	public void surfaceDestroyed(SurfaceHolder holder) {
+		onStopStream();
 	}
 
 }

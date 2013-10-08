@@ -2,6 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:gravity="right"
     tools:context=".MainActivity" >
 
     <SurfaceView
@@ -41,16 +42,52 @@
             android:src="@drawable/setting" />
     </RelativeLayout>
 
-    <TextView
-        android:id="@+id/tv_live"
+    <ImageView
+        android:id="@+id/camera_switch"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentRight="true"
+        android:layout_alignParentTop="true"
+        android:layout_marginTop="35dp"
+        android:src="@drawable/switch_camera" />
+
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
-        android:layout_marginBottom="100dp"
-        android:layout_marginRight="24dp"
-        android:text="live"
-        android:textColor="#ffff0000"
-        android:textAppearance="?android:attr/textAppearanceMedium" />
+        android:orientation="horizontal"
+        android:id="@+id/float_bar"
+        android:padding="10dp" >
+
+        <TextView
+            android:id="@+id/tv_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="01:02" />
+
+        <TextView
+            android:id="@+id/tv_frame_rate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="0fps" />
+
+        <TextView
+            android:id="@+id/tv_bitrate"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:text="0kbps" />
+
+        <TextView
+            android:id="@+id/tv_live"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="live"
+            android:layout_marginLeft="20dp"
+            android:textAppearance="?android:attr/textAppearanceMedium"
+            android:textColor="#ffff0000" />
+    </LinearLayout>
 
 </RelativeLayout>

@@ -1,6 +1,7 @@
 package com.john.xstream;
 
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import junit.framework.Assert;
 import android.annotation.TargetApi;
@@ -28,6 +29,7 @@ import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.TextView;
 import android.widget.Toast;
 import c7.Frame;
 
@@ -49,7 +51,11 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 	private Dialog mSettingDlg;
 	private int mSizeID;
 	private int mCameraId = 0;
-	private View mLiveView;
+	private View mLiveFloatBar;
+
+	private TextView mTimeInterval, mBitRate, mFrameRate;
+
+	private AtomicInteger mTotalBits, mTotalFrames;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -64,7 +70,34 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 // return;
 // }
 		setContentView(R.layout.activity_main);
-		mLiveView = findViewById(R.id.tv_live);
+		mLiveFloatBar = findViewById(R.id.float_bar);
+		mTimeInterval = (TextView) mLiveFloatBar.findViewById(R.id.tv_time);
+		mTimeInterval.setTag(0);
+		mBitRate = (TextView) mLiveFloatBar.findViewById(R.id.tv_bitrate);
+		mFrameRate = (TextView) mLiveFloatBar.findViewById(R.id.tv_frame_rate);
+		mTotalBits = new AtomicInteger(0);
+		mTotalFrames = new AtomicInteger(0);
+		CRTimer t = new CRTimer(1000) {
+
+			@Override
+			protected void onTimer() {
+				int current = (Integer) mTimeInterval.getTag();
+				current += 1;
+				mTimeInterval.setTag(current);
+				int s = current / 60;
+				int m = current % 60;
+				mTimeInterval.setText(String.format("%02d:%02d", s, m));
+
+				mFrameRate.setText(String.format("%2dfps", mTotalFrames.get()));
+				mTotalFrames.set(0);
+				mBitRate.setText(String.format("%2dkbps", mTotalBits.get() / 1024));
+				mTotalBits.set(0);
+			}
+		};
+		mLiveFloatBar.setTag(t);
+		if (mLiveFloatBar.getVisibility() == View.VISIBLE) {
+			t.start();
+		}
 		if (stream != null) {
 			stream.setStartStreamCallback(this);
 		}
@@ -77,6 +110,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 		mLive = (ImageView) findViewById(R.id.preview_preview);
 		mSnapshot = (ImageView) findViewById(R.id.preview_snapshot);
 		mSetting = (ImageView) findViewById(R.id.preview_setting);
+		mSwitch = (ImageView) findViewById(R.id.camera_switch);
 
 		StateListDrawable drawable = new StateListDrawable();
 		drawable.addState(new int[] { android.R.attr.state_pressed },
@@ -93,7 +127,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 		mLive.setOnClickListener(this);
 		mSnapshot.setOnClickListener(this);
 		mSetting.setOnClickListener(this);
-
+		mSwitch.setOnClickListener(this);
 		mSettingDlg = new Dialog(
 				this,
 				Build.VERSION.SDK_INT > 10 ? android.R.style.Theme_Holo_Light_DialogWhenLarge_NoActionBar
@@ -192,6 +226,8 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 			stream.unreg();
 			stream = null;
 		}
+		CRTimer t = (CRTimer) mLiveFloatBar.getTag();
+		t.stop();
 		super.onDestroy();
 	}
 
@@ -246,7 +282,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 	public synchronized void onFrameCallback(Thread context, Frame frame) {
 		// frame带有私有数据
 		final XStream stream = MainActivity.stream;
-		boolean live = mLiveView.getVisibility() == View.VISIBLE;
+		boolean live = mLiveFloatBar.getVisibility() == View.VISIBLE;
 		if (live && stream != null) {
 			int result = -1;
 			while (result == -1) {
@@ -260,7 +296,8 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 // return false;
 				}
 				if (frame.type == Frame.FRAME_TYPE_VIDEO) {
-
+					mTotalFrames.addAndGet(1);
+					mTotalBits.addAndGet(frame.length);
 				}
 				/*
 				 * int offset = *pParams; int length = *(pParams + 1); int
@@ -355,7 +392,7 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 				mpr.switchCamera(mCameraId);
 			}
 		} else if (v == mLive) {
-			boolean isLive = mLiveView.getVisibility() == View.VISIBLE;
+			boolean isLive = mLiveFloatBar.getVisibility() == View.VISIBLE;
 			MyPreviewRunnable mpr = mPreviewThread;
 			if (mpr != null) {
 				mpr.setH264FrameCallback(isLive ? null : this);
@@ -364,9 +401,16 @@ public class MainActivity extends Activity implements OnClickListener, H264Frame
 				}
 			}
 			if (isLive) {
-				mLiveView.setVisibility(View.GONE);
+				mLiveFloatBar.setVisibility(View.GONE);
+				CRTimer t = (CRTimer) mLiveFloatBar.getTag();
+				t.stop();
 			} else {
-				mLiveView.setVisibility(View.VISIBLE);
+				mLiveFloatBar.setVisibility(View.VISIBLE);
+				CRTimer t = (CRTimer) mLiveFloatBar.getTag();
+				mTimeInterval.setTag(0);
+				mTotalBits.set(0);
+				mTotalFrames.set(0);
+				t.start();
 			}
 		}
 	}

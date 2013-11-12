@@ -1,5 +1,11 @@
 package com.john.xstream;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.List;
 
 import android.animation.Animator;
@@ -11,6 +17,7 @@ import android.hardware.Camera;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.text.TextUtils;
 import android.view.View;
 import android.view.Window;
@@ -177,8 +184,26 @@ public class LoginActivity extends Activity {
 			if (sResolutions == null || sResolutions.isEmpty()) {
 				return 1000;
 			}
-			int result = stream.reg(DEFAULT_ADDRESS, DEFAULT_PORT, mUserName, mPassword,
-					DEFAULT_WIDTH, DEFAULT_HEIGHT);
+			String addr = DEFAULT_ADDRESS;
+			int port = DEFAULT_PORT;
+			try {
+				FileInputStream fis = new FileInputStream(new File(Environment.getExternalStorageDirectory(), "server.txt"));
+				BufferedReader reader = new BufferedReader(new InputStreamReader(fis));
+				addr = reader.readLine();
+				port = Integer.parseInt(reader.readLine());
+				reader.close();
+			} catch (FileNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+
+			int result = stream
+					.reg(addr, port, mUserName, mPassword, DEFAULT_WIDTH, DEFAULT_HEIGHT);
 			return result;
 		}
 

@@ -9,7 +9,7 @@ public class MyPreviewRunnable extends PreviewThread {
 
 	public MyPreviewRunnable() {
 		super();
-//		setVideoDC(new DC7());
+// setVideoDC(new DC7());
 		USE_HW_ENCODE = false;
 	}
 
@@ -19,7 +19,9 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.run();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#startThread()
 	 */
 	@Override
@@ -28,8 +30,12 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.startThread();
 	}
 
-	/* (non-Javadoc)
-	 * @see com.crearo.mpu.sdk.CameraThread#startCamera(android.view.SurfaceView, int)
+	/*
+	 * (non-Javadoc)
+	 * 
+	 * @see
+	 * com.crearo.mpu.sdk.CameraThread#startCamera(android.view.SurfaceView,
+	 * int)
 	 */
 	@Override
 	protected void startCamera(SurfaceView sf, int cameraId) {
@@ -37,7 +43,9 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.startCamera(sf, cameraId);
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#resumeCamera()
 	 */
 	@Override
@@ -46,7 +54,9 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.resumeCamera();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#pauseCamera()
 	 */
 	@Override
@@ -55,7 +65,9 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.pauseCamera();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#switchCamera(int)
 	 */
 	@Override
@@ -64,16 +76,13 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.switchCamera(newId);
 	}
 
-	/* (non-Javadoc)
-	 * @see com.crearo.mpu.sdk.CameraThread#tryFeedCamera()
-	 */
-	@Override
-	protected void tryFeedCamera() {
-		// TODO Auto-generated method stub
-		super.tryFeedCamera();
+	public H264FrameCallback getH264FrameCallback() {
+		return mH264frameCallback;
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#stopThread()
 	 */
 	@Override
@@ -82,13 +91,15 @@ public class MyPreviewRunnable extends PreviewThread {
 		super.stopThread();
 	}
 
-	/* (non-Javadoc)
+	/*
+	 * (non-Javadoc)
+	 * 
 	 * @see com.crearo.mpu.sdk.CameraThread#stopCamera(boolean)
 	 */
 	@Override
-	protected void stopCamera(boolean block) {
+	protected void stopCamera() {
 		// TODO Auto-generated method stub
-		super.stopCamera(block);
+		super.stopCamera();
 	}
- 
+
 }

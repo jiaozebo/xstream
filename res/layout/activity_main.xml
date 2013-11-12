@@ -18,12 +18,12 @@
         android:background="@drawable/bd"
         android:orientation="vertical" >
 
-        <ImageView
+        <CheckBox
             android:id="@+id/preview_preview"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="50dp"
-            android:src="@drawable/preview" />
+            android:button="@drawable/preview" />
 
         <ImageView
             android:id="@+id/preview_snapshot"
@@ -52,12 +52,12 @@
         android:src="@drawable/switch_camera" />
 
     <LinearLayout
+        android:id="@+id/float_bar"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:orientation="horizontal"
-        android:id="@+id/float_bar"
         android:padding="10dp" >
 
         <TextView
@@ -84,8 +84,8 @@
             android:id="@+id/tv_live"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="live"
             android:layout_marginLeft="20dp"
+            android:text="live"
             android:textAppearance="?android:attr/textAppearanceMedium"
             android:textColor="#ffff0000" />
     </LinearLayout>

@@ -16,6 +16,9 @@ import android.os.Environment;
 
 public class XStreamApp extends Application {
 
+	public static final String FILE_ROOT = "XStream";
+	public static final String FILE_SNAPSHOT = FILE_ROOT + "/Snapshot";
+
 	/*
 	 * (non-Javadoc)
 	 * 
@@ -24,17 +27,20 @@ public class XStreamApp extends Application {
 	@Override
 	public void onCreate() {
 		super.onCreate();
-		File f = new File(Environment.getExternalStorageDirectory(), "XStream");
+		File f = new File(Environment.getExternalStorageDirectory(), FILE_ROOT);
+		f.mkdirs();
+		f = new File(Environment.getExternalStorageDirectory(), FILE_SNAPSHOT);
 		f.mkdirs();
 		save2file("*****************************************************", true);
 		save2file("******************开始启动****************************", true);
 		save2file("*****************************************************", true);
-		boolean debug = false;
+		boolean debug = true;
 		if (debug)
 			Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {
 
 				@Override
 				public void uncaughtException(Thread thread, Throwable ex) {
+					ex.printStackTrace();
 					PrintStream err;
 					OutputStream os;
 					try {
@@ -42,7 +48,7 @@ public class XStreamApp extends Application {
 								Locale.CHINA);
 						String time = formatter.format(new java.util.Date());
 						os = new FileOutputStream(String.format("%s/%s/log.txt", Environment
-								.getExternalStorageDirectory().getPath(), "XStream"), true);
+								.getExternalStorageDirectory().getPath(), FILE_ROOT), true);
 						err = new PrintStream(os);
 						err.append(time);
 						ex.printStackTrace(err);
@@ -65,7 +71,7 @@ public class XStreamApp extends Application {
 		FileOutputStream fos = null;
 		try {
 			fos = new FileOutputStream(String.format("%s/%s/log.txt", Environment
-					.getExternalStorageDirectory().getPath(), "XStream"), append);
+					.getExternalStorageDirectory().getPath(), FILE_ROOT), append);
 			SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.CHINA);
 			fos.write((formatter.format(new Date()) + "\r\n").getBytes());
 			fos.write(content.getBytes());
